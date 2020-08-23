@@ -55,10 +55,18 @@
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
+<<<<<<< HEAD
 #include <net/netns/hash.h>
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
 #include <net/ncm.h>
 // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+#if defined(CONFIG_KNOX_NCM)
+/* START_OF_KNOX_NPA */
+#include <net/ncm.h>
+/* END_OF_KNOX_NPA */
+#endif
+>>>>>>> 29b776c69... Fixed errors occuring due to KNOX_NCM
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
@@ -355,13 +363,24 @@ static void nf_ct_add_to_dying_list(struct nf_conn *ct)
 {
 	struct ct_pcpu *pcpu;
 
+<<<<<<< HEAD
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
 	/* Add 'del_timer(&ct->npa_timeout)' if struct nf_conn->timeout is of type struct timer_list; */
+=======
+#if defined(CONFIG_KNOX_NCM)
+	/* START_OF_KNOX_NPA */
+	del_timer(&ct->npa_timeout);
+>>>>>>> 29b776c69... Fixed errors occuring due to KNOX_NCM
 	/* send dying conntrack entry to collect data */
 	if ( (check_ncm_flag()) && (ct != NULL) && (atomic_read(&ct->startFlow)) ) {
 		knox_collect_conntrack_data(ct, NCM_FLOW_TYPE_CLOSE, 10);
 	}
+<<<<<<< HEAD
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+	/* END_OF_KNOX_NPA */
+#endif
+>>>>>>> 29b776c69... Fixed errors occuring due to KNOX_NCM
 
 	/* add this conntrack to the (per cpu) dying list */
 	ct->cpu = smp_processor_id();
@@ -522,6 +541,44 @@ bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 }
 EXPORT_SYMBOL_GPL(nf_ct_delete);
 
+<<<<<<< HEAD
+=======
+#if defined(CONFIG_KNOX_NCM)
+/* START_OF_KNOX_NPA */
+/* Use this function only if struct nf_conn->timeout is of type struct timer_list */
+static void death_by_timeout_npa(unsigned long ul_conntrack)
+{
+	struct nf_conn *tmp = (struct nf_conn *)ul_conntrack;
+	if ( (tmp != NULL) && (check_ncm_flag()) && (check_intermediate_flag()) && (atomic_read(&tmp->startFlow)) && (atomic_read(&tmp->intermediateFlow)) ) {
+		unsigned long timeout = tmp->timeout.expires - jiffies;
+		if ( (timeout > 0) && ((timeout/HZ) > 5) ) {
+			tmp->npa_timeout.expires = (jiffies) + (get_intermediate_timeout() * HZ);
+			add_timer(&tmp->npa_timeout);
+		} else {
+			del_timer(&tmp->npa_timeout);
+		}
+		knox_collect_conntrack_data(tmp, NCM_FLOW_TYPE_INTERMEDIATE, 20);
+		return;
+	}
+	del_timer(&tmp->npa_timeout);
+	return;
+}
+/* END_OF_KNOX_NPA */
+#endif
+
+static void death_by_timeout(unsigned long ul_conntrack)
+{
+#if defined(CONFIG_KNOX_NCM)
+	/* START_OF_KNOX_NPA */
+	struct nf_conn *tmp = (struct nf_conn *)ul_conntrack;
+	atomic_set(&tmp->intermediateFlow, 0);
+	del_timer(&tmp->npa_timeout);
+	/* END_OF_KNOX_NPA */
+#endif
+	nf_ct_delete((struct nf_conn *)ul_conntrack, 0, 0);
+}
+
+>>>>>>> 29b776c69... Fixed errors occuring due to KNOX_NCM
 static inline bool
 nf_ct_key_equal(struct nf_conntrack_tuple_hash *h,
 		const struct nf_conntrack_tuple *tuple,
@@ -1124,9 +1181,23 @@ __nf_conntrack_alloc(struct net *net,
 		     gfp_t gfp, u32 hash)
 {
 	struct nf_conn *ct;
+<<<<<<< HEAD
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
 	struct timespec open_timespec;
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+=======
+#if defined(CONFIG_KNOX_NCM)
+	/* START_OF_KNOX_NPA */
+	struct timespec open_timespec;
+	/* END_OF_KNOX_NPA */
+#endif
+	
+	if (unlikely(!nf_conntrack_hash_rnd)) {
+		init_nf_conntrack_hash_rnd();
+		/* recompute the hash as nf_conntrack_hash_rnd is initialized */
+		hash = hash_conntrack_raw(orig);
+	}
+>>>>>>> 29b776c69... Fixed errors occuring due to KNOX_NCM
 
 	/* We don't want any race condition at early drop stage */
 	atomic_inc(&net->ct.count);
@@ -1149,8 +1220,13 @@ __nf_conntrack_alloc(struct net *net,
 		goto out;
 
 	spin_lock_init(&ct->lock);
+<<<<<<< HEAD
 
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+=======
+#if defined(CONFIG_KNOX_NCM)
+	/* START_OF_KNOX_NPA */
+>>>>>>> 29b776c69... Fixed errors occuring due to KNOX_NCM
 	/* initialize the conntrack structure members when memory is allocated */
 	if (ct != NULL) {
 		open_timespec = current_kernel_time();
@@ -1171,8 +1247,13 @@ __nf_conntrack_alloc(struct net *net,
 		ct->npa_timeout = 0;
 		atomic_set(&ct->intermediateFlow, 0);
 	}
+<<<<<<< HEAD
 	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 
+=======
+	/* END_OF_KNOX_NPA */
+#endif
+>>>>>>> 29b776c69... Fixed errors occuring due to KNOX_NCM
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
